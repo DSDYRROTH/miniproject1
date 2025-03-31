@@ -1,0 +1,6 @@
+id,title,price,lat,lng,capacity,rating,amenities,Air Conditioning,Fast Food,Indoor Seating Area,Regional Cuisine,Street Parking,price_norm,capacity_norm
+1,Banwait food court,1500,19.033696,73.01675,10,4.5,Indoor Seating Area,0,0,1,0,0,0.3181818181818181,0.11111111111111112
+2,RoadSide A Food Joint,800,19.024384,73.019967,20,4.0,Street Parking,0,0,0,0,1,0.0,0.33333333333333337
+3,Courtyard Pavilion,2000,19.043365,73.027075,50,3.8,Air Conditioning,1,0,0,0,0,0.5454545454545454,1.0
+4,Maharashtra Lunch Home ,3000,19.042841,73.021976,5,4.9,Regional Cuisine,0,0,0,1,0,0.9999999999999999,0.0
+5,Giza Food Corner,1000,19.031753,73.021614,30,3.5,Fast Food,0,1,0,0,0,0.09090909090909088,0.5555555555555556
