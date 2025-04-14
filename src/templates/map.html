@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Space Recommendations Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+        label, button {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Find a Space</h2>
+
+    <!-- User input form -->
+    <label for="price">Price: ₹</label>
+    <input type="number" id="price" value="1000" /><br><br>
+
+    <label for="capacity">Capacity:</label>
+    <input type="number" id="capacity" value="20" /><br><br>
+
+    <label>Amenities:</label><br>
+    <input type="checkbox" name="amenities" value="AC" /> AC<br>
+    <input type="checkbox" name="amenities" value="Fast Food" /> Fast Food<br>
+    <input type="checkbox" name="amenities" value="Indoor Seating Area" /> Indoor Seating Area<br>
+    <input type="checkbox" name="amenities" value="Regional Cuisine" /> Regional Cuisine<br>
+    <input type="checkbox" name="amenities" value="Street Parking" /> Street Parking<br><br>
+
+    <button onclick="fetchRecommendations()">Search</button>
+
+    <!-- Map container -->
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize the map, centered on Thane, India
+        const map = L.map('map').setView([19.033696, 73.01675], 13); 
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Function to fetch recommendations from the server
+        async function fetchRecommendations() {
+            const price = document.getElementById("price").value;
+            const capacity = document.getElementById("capacity").value;
+            const amenities = Array.from(document.querySelectorAll("input[name=amenities]:checked")).map(cb => cb.value);
+
+            // Send POST request to backend for recommendations
+            const response = await fetch("/recommend", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ price, capacity, amenities })
+            });
+
+            // Handle the response from backend
+            const result = await response.json();
+
+            if (result.status === "success") {
+                // Clear existing markers
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.Marker) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                // Display the recommended spaces on the map
+                result.recommendations.forEach(space => {
+                    const marker = L.marker([space.lat, space.lng]).addTo(map);
+                    marker.bindPopup(`
+                        <b>${space.title}</b><br>
+                        Price: ₹${space.price}<br>
+                        Capacity: ${space.capacity}<br>
+                        Amenities: ${space.amenities.join(', ')}
+                    `);
+                });
+            } else {
+                alert(result.error || "Something went wrong.");
+            }
+        }
+    </script>
+</body>
+</html>
