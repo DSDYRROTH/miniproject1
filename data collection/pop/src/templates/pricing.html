@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Space Pricing</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="View pricing, sales forecast, and trends for recommended spaces.">
+
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: #111;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .pricing-container {
+            background: rgba(20, 20, 25, 0.9);
+            border-radius: 8px;
+            padding: 20px;
+            width: 90%;
+            max-width: 800px; /* Increased width for dual charts */
+            border: 1px solid #00ffaa;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #00ffaa;
+            color: #111;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        .back-button:hover {
+            background: #00cc88;
+        }
+
+        h2 {
+            font-size: 22px;
+            color: #00ffaa;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            color: #ff5555;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .space-details p {
+            font-size: 14px;
+            color: #a0a0a0;
+            margin: 5px 0;
+        }
+
+        .space-details h3 {
+            font-size: 18px;
+            color: #00ffaa;
+            margin: 10px 0;
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+
+        .rating .stars {
+            color: #ffd700;
+        }
+
+        .rating .stars i {
+            font-size: 12px;
+        }
+
+        .forecast-form {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(30, 30, 35, 0.9);
+            border-radius: 4px;
+        }
+
+        .forecast-form label {
+            font-size: 14px;
+            color: #e0e0e0;
+            margin-right: 10px;
+        }
+
+        .forecast-form input[type="date"] {
+            padding: 5px;
+            border: 1px solid #00ffaa;
+            border-radius: 4px;
+            background: rgba(30, 30, 35, 0.9);
+            color: #e0e0e0;
+        }
+
+        .forecast-form button {
+            padding: 8px 12px;
+            background: #00ffaa;
+            color: #111;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+
+        .forecast-form button:hover {
+            background: #00cc88;
+        }
+
+        .forecast-results {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(30, 30, 35, 0.9);
+            border-radius: 4px;
+        }
+
+        .forecast-week {
+            margin-bottom: 10px;
+        }
+
+        .forecast-week h4 {
+            font-size: 14px;
+            color: #00ffaa;
+            margin-bottom: 5px;
+        }
+
+        .forecast-results p {
+            font-size: 13px;
+            color: #e0e0e0;
+            margin: 3px 0;
+        }
+
+        .charts-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .chart-container {
+            flex: 1;
+            padding: 10px;
+            background: rgba(30, 30, 35, 0.9);
+            border-radius: 4px;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .pricing-container {
+                padding: 15px;
+            }
+
+            h2 {
+                font-size: 18px;
+            }
+
+            .space-details h3 {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="pricing-container">
+        <a href="/map" class="back-button" aria-label="Back to Map">
+            <i class="fas fa-arrow-left"></i> Back to Map
+        </a>
+        <h2>Space Pricing and Sales Forecast</h2>
+        <div id="error" class="error" style="display: none;"></div>
+        <div class="space-details" id="space-details">
+            <p>Loading space details...</p>
+        </div>
+        <div class="forecast-form">
+            <h3>Sales Forecast</h3>
+            <label for="start-date">Start Date:</label>
+            <input type="date" id="start-date" required>
+            <label for="end-date">End Date:</label>
+            <input type="date" id="end-date" required>
+            <button onclick="fetchSalesForecast()">Get Sales Forecast</button>
+        </div>
+        <div class="forecast-results" id="price-forecast-results" style="display: none;">
+            <h3>Price Forecast (Next 30 Days)</h3>
+        </div>
+        <div class="forecast-results" id="sales-forecast-results" style="display: none;">
+            <h3>Sales Forecast (Next 5 Days)</h3>
+        </div>
+        <div class="charts-container">
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Render Star Ratings
+        function renderStars(rating) {
+            if (typeof rating !== 'number' || isNaN(rating) || rating === 'Not rated') {
+                return `<span class="rating">Rating: Not rated</span>`;
+            }
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            let starsHtml = '';
+            for (let i = 0; i < fullStars; i++) {
+                starsHtml += '<i class="fas fa-star"></i>';
+            }
+            if (hasHalfStar) {
+                starsHtml += '<i class="fas fa-star-half-alt"></i>';
+            }
+            for (let i = 0; i < emptyStars; i++) {
+                starsHtml += '<i class="far fa-star"></i>';
+            }
+            return `<span class="rating" aria-label="Rating: ${rating} out of 5"><span class="stars">${starsHtml}</span> ${rating}/5</span>`;
+        }
+
+        // Group Forecast by Week
+        function groupForecastByWeek(forecast) {
+            const weeks = [];
+            for (let i = 0; i < forecast.length; i += 7) {
+                weeks.push(forecast.slice(i, i + 7));
+            }
+            return weeks;
+        }
+
+        // Render Price Chart
+        let priceChart = null;
+        function renderPriceChart(historical, forecast) {
+            console.log('Rendering price chart with:', { historical, forecast });
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            const historicalDates = historical.map(h => h.date);
+            const historicalPrices = historical.map(h => h.price);
+            const forecastDates = forecast.map(f => f.date);
+            const forecastPrices = forecast.map(f => f.price);
+
+            const allDates = [...historicalDates, ...forecastDates];
+            const historicalData = [...historicalPrices, ...Array(forecastPrices.length).fill(null)];
+            const forecastData = [...Array(historicalPrices.length).fill(null), ...forecastPrices];
+
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allDates,
+                    datasets: [
+                        {
+                            label: 'Historical Prices',
+                            data: historicalData,
+                            borderColor: '#1e90ff',
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Forecasted Prices',
+                            data: forecastData,
+                            borderColor: '#ff5555',
+                            fill: false,
+                            tension: 0.1,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } },
+                        title: {
+                            display: true,
+                            text: 'Price Trend and Forecast (30 Days)',
+                            color: '#e0e0e0',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#a0a0a0',
+                                maxTicksLimit: 8,
+                                maxRotation: 45,
+                                minRotation: 45,
+                                callback: function(value, index) {
+                                    return index % 7 === 0 ? allDates[index] : '';
+                                }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#a0a0a0',
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            title: { display: true, text: 'Price (₹)', color: '#e0e0e0' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Sales Chart
+        let salesChart = null;
+        function renderSalesChart(historical, forecast) {
+            console.log('Rendering sales chart with:', { historical, forecast });
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            if (salesChart) {
+                salesChart.destroy();
+            }
+
+            const historicalDates = historical.map(h => h.date);
+            const historicalSales = historical.map(h => h.sales);
+            const forecastDates = forecast.map(f => f.date);
+            const forecastSales = forecast.map(f => f.sales);
+
+            const allDates = [...historicalDates, ...forecastDates];
+            const historicalData = [...historicalSales, ...Array(forecastSales.length).fill(null)];
+            const forecastData = [...Array(historicalSales.length).fill(null), ...forecastSales];
+
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allDates,
+                    datasets: [
+                        {
+                            label: 'Historical Sales',
+                            data: historicalData,
+                            borderColor: '#00ffaa',
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Forecasted Sales',
+                            data: forecastData,
+                            borderColor: '#ffd700',
+                            fill: false,
+                            tension: 0.1,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } },
+                        title: {
+                            display: true,
+                            text: 'Sales Trend and Forecast (5 Days)',
+                            color: '#e0e0e0',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#a0a0a0',
+                                maxTicksLimit: 8,
+                                maxRotation: 45,
+                                minRotation: 45,
+                                callback: function(value, index) {
+                                    return index % 3 === 0 ? allDates[index] : '';
+                                }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#a0a0a0',
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            title: { display: true, text: 'Sales', color: '#e0e0e0' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fetch Space Details and Price Forecast
+        async function loadSpaceDetails() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const businessType = urlParams.get('business_type');
+            const title = decodeURIComponent(urlParams.get('title') || '');
+            const errorDiv = document.getElementById('error');
+            const spaceDetailsDiv = document.getElementById('space-details');
+            const priceForecastResultsDiv = document.getElementById('price-forecast-results');
+
+            console.log('Loading space:', { businessType, title });
+
+            if (!businessType || !title) {
+                errorDiv.textContent = 'Missing business type or space title.';
+                errorDiv.style.display = 'block';
+                spaceDetailsDiv.innerHTML = '<p>Invalid space details.</p>';
+                return;
+            }
+
+            try {
+                // Fetch space details
+                console.log('Fetching recommendations...');
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_type: businessType, price: 0, capacity: 0, amenities: [] })
+                });
+                const result = await response.json();
+                console.log('Recommendations response:', result);
+
+                if (result.status === 'success') {
+                    const space = result.recommendations.find(s => s.title === title);
+                    if (space) {
+                        spaceDetailsDiv.innerHTML = `
+                            <h3>${space.title || 'Unnamed Shop'}</h3>
+                            <p>Current Price: ₹${space.price.toLocaleString()}</p>
+                            <p>Capacity: ${space.capacity} people</p>
+                            <p>Amenities: ${space.amenities.join(', ') || 'None'}</p>
+                            ${renderStars(space.rating)}
+                        `;
+                    } else {
+                        spaceDetailsDiv.innerHTML = '<p>Space not found.</p>';
+                    }
+                } else {
+                    spaceDetailsDiv.innerHTML = '<p>Failed to load space details.</p>';
+                }
+
+                // Fetch price forecast
+                console.log('Fetching price forecast...');
+                const forecastResponse = await fetch('/forecast_price', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_type: businessType, space_title: title })
+                });
+                const forecastResult = await forecastResponse.json();
+                console.log('Price forecast response:', forecastResult);
+
+                if (forecastResult.status === 'success') {
+                    const weeks = groupForecastByWeek(forecastResult.forecast);
+                    priceForecastResultsDiv.innerHTML = `
+                        <h3>Price Forecast (Next 30 Days)</h3>
+                        ${weeks.map((week, index) => `
+                            <div class="forecast-week">
+                                <h4>Week ${index + 1}</h4>
+                                ${week.map(f => `
+                                    <p>${f.date}: ₹${f.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                `).join('')}
+                            </div>
+                        `).join('')}
+                    `;
+                    priceForecastResultsDiv.style.display = 'block';
+                    renderPriceChart(forecastResult.historical, forecastResult.forecast);
+                } else {
+                    priceForecastResultsDiv.innerHTML = `<p class="error">${forecastResult.error}</p>`;
+                    priceForecastResultsDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                errorDiv.textContent = 'Error loading data. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        // Fetch Sales Forecast
+        async function fetchSalesForecast() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const errorDiv = document.getElementById('error');
+            const salesForecastResultsDiv = document.getElementById('sales-forecast-results');
+            const urlParams = new URLSearchParams(window.location.search);
+            const businessType = urlParams.get('business_type');
+            const title = decodeURIComponent(urlParams.get('title') || '');
+
+            if (!startDate || !endDate) {
+                errorDiv.textContent = 'Please select both start and end dates.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                console.log('Fetching sales forecast...');
+                const response = await fetch('/forecast_sales', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_type: businessType, space_title: title, start_date: startDate, end_date: endDate })
+                });
+                const result = await response.json();
+                console.log('Sales forecast response:', result);
+
+                if (result.status === 'success') {
+                    salesForecastResultsDiv.innerHTML = `
+                        <h3>Sales Forecast (Next 5 Days)</h3>
+                        ${result.forecast.map(f => `
+                            <p>${f.date}: ${f.sales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        `).join('')}
+                    `;
+                    salesForecastResultsDiv.style.display = 'block';
+                    renderSalesChart(result.historical, result.forecast);
+                } else {
+                    salesForecastResultsDiv.innerHTML = `<p class="error">${result.error}</p>`;
+                    salesForecastResultsDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                errorDiv.textContent = 'Error loading sales forecast. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        // Load data on page load
+        loadSpaceDetails();
+    </script>
+</body>
+</html>

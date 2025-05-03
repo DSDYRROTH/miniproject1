@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Find Spaces</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Explore AI-recommended retail and food spaces with interactive maps.">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+    <style>
+        :root {
+            --radium: #00ffaa;
+            --radium-dark: #00cc88;
+            --radium-glow: 0 0 15px rgba(0, 255, 170, 0.7);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: #111;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        /* Sliding Animation */
+        .page-wrapper {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Map Container */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+            border: 1px solid rgba(0, 255, 170, 0.15);
+            box-shadow: var(--radium-glow);
+        }
+
+        /* UI Container */
+        .ui-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 25, 0.85);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--radium-glow);
+            z-index: 1000;
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 170, 0.15);
+        }
+
+        .ui-container:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Back Button */
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: linear-gradient(45deg, var(--radium-dark), var(--radium));
+            color: #111;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .back-button:hover, .back-button:focus {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 255, 170, 0.4);
+        }
+
+        .back-button i {
+            font-size: 16px;
+        }
+
+        .ui-container h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--radium);
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 5px rgba(0, 255, 170, 0.5);
+        }
+
+        .error {
+            color: #ff5555;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px rgba(255, 85, 85, 0.5);
+        }
+
+        .ui-container label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e0e0e0;
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        .ui-container input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(0, 255, 170, 0.1);
+            border-radius: 6px;
+            background: rgba(30, 30, 35, 0.8);
+            color: #e0e0e0;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .ui-container input[type="number"]:focus {
+            outline: none;
+            border-color: var(--radium);
+            box-shadow: var(--radium-glow);
+        }
+
+        .ui-container input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--radium);
+        }
+
+        .ui-container button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(45deg, var(--radium-dark), var(--radium));
+            border: none;
+            border-radius: 6px;
+            color: #111;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .ui-container button:hover, .ui-container button:focus {
+            transform: scale(1.03);
+            box-shadow: 0 4px 12px rgba(0, 255, 170, 0.7);
+        }
+
+        /* Shop Sidebar */
+        .shop-sidebar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 25, 0.85);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--radium-glow);
+            z-index: 1000;
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 255, 170, 0.15);
+        }
+
+        .shop-sidebar:hover {
+            transform: translateY(-5px);
+        }
+
+        .shop-sidebar h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--radium);
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 5px rgba(0, 255, 170, 0.5);
+        }
+
+        .shop-card {
+            background: rgba(30, 30, 35, 0.8);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: background 0.3s ease, transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .shop-card:hover {
+            background: rgba(40, 40, 45, 0.8);
+            transform: translateY(-3px);
+        }
+
+        .shop-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--radium);
+            margin-bottom: 8px;
+            text-shadow: 0 0 5px rgba(0, 255, 170, 0.5);
+        }
+
+        .shop-card p {
+            font-size: 14px;
+            color: #a0a0a0;
+            margin-bottom: 6px;
+        }
+
+        .forecast-button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(45deg, var(--radium-dark), var(--radium));
+            border: none;
+            border-radius: 6px;
+            color: #111;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .forecast-button:hover, .forecast-button:focus {
+            transform: scale(1.03);
+            box-shadow: 0 4px 12px rgba(0, 255, 170, 0.7);
+        }
+
+        .forecast-results {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(30, 30, 35, 0.8);
+            border-radius: 6px;
+        }
+
+        .forecast-results p {
+            font-size: 13px;
+            color: #e0e0e0;
+            margin: 5px 0;
+        }
+
+        /* Rating Styles */
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #a0a0a0;
+            margin-bottom: 6px;
+        }
+
+        .rating .stars {
+            color: #ffd700;
+        }
+
+        .rating .stars i {
+            font-size: 12px;
+        }
+
+        .shop-sidebar .no-results {
+            font-size: 16px;
+            color: #a0a0a0;
+            text-align: center;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .ui-container, .shop-sidebar {
+                width: 280px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .ui-container, .shop-sidebar {
+                width: 90%;
+                left: 5%;
+                right: 5%;
+                top: 10px;
+            }
+
+            .shop-sidebar {
+                top: auto;
+                bottom: 10px;
+                max-height: 40vh;
+            }
+
+            .back-button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .rating .stars i {
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ui-container h2, .shop-sidebar h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <!-- User Input Form -->
+        <div class="ui-container">
+            <a href="/" class="back-button" aria-label="Back to Home">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+            <h2>Find Your Space</h2>
+            <div id="error" class="error" style="display: none;"></div>
+            <form id="space-form">
+                <label for="price">Price (₹)</label>
+                <input type="number" id="price" min="0" required />
+
+                <label for="capacity">Capacity (People)</label>
+                <input type="number" id="capacity" min="0" required />
+
+                <label>Amenities</label>
+                <div id="amenities-container"></div>
+
+                <button type="submit" aria-label="Search for Spaces">Search Spaces</button>
+            </form>
+        </div>
+
+        <!-- Shop Sidebar -->
+        <div class="shop-sidebar">
+            <h2>Recommended Spaces</h2>
+            <div id="shop-list">
+                <p class="no-results">Enter preferences and search to view recommendations.</p>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+    <script>
+        // Initialize Leaflet Map
+        let map;
+        try {
+            map = L.map('map').setView([19.033696, 73.01675], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            map.invalidateSize();
+            console.log('Map initialized successfully');
+        } catch (e) {
+            console.error('Map initialization failed:', e);
+            document.getElementById('error').textContent = 'Failed to load map. Please check your internet connection.';
+            document.getElementById('error').style.display = 'block';
+        }
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            if (map) map.invalidateSize();
+        });
+
+        // Dynamic Amenities
+        const urlParams = new URLSearchParams(window.location.search);
+        const businessType = urlParams.get('business_type') || 'retail';
+        const amenitiesOptions = {
+            retail: ['Air Conditioning', 'Fast Fashion', 'Indoor Shopping Area', 'Regional Brands', 'Street Access'],
+            food: ['Air Conditioning', 'Fast Food', 'Indoor Seating Area', 'Regional Cuisine', 'Street Parking']
+        };
+        const amenitiesContainer = document.querySelector('#amenities-container');
+        amenitiesContainer.innerHTML = amenitiesOptions[businessType].map(amenity => `
+            <label style="display: flex; align-items: center; font-size: 14px; color: #e0e0e0; margin: 5px 0;">
+                <input type="checkbox" name="amenities" value="${amenity}"> ${amenity}
+            </label>
+        `).join('');
+
+        // Render Star Ratings
+        function renderStars(rating) {
+            if (typeof rating !== 'number' || isNaN(rating) || rating === 'Not rated') {
+                return `<span class="rating">Rating: Not rated</span>`;
+            }
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            let starsHtml = '';
+            for (let i = 0; i < fullStars; i++) {
+                starsHtml += '<i class="fas fa-star"></i>';
+            }
+            if (hasHalfStar) {
+                starsHtml += '<i class="fas fa-star-half-alt"></i>';
+            }
+            for (let i = 0; i < emptyStars; i++) {
+                starsHtml += '<i class="far fa-star"></i>';
+            }
+            return `<span class="rating" aria-label="Rating: ${rating} out of 5"><span class="stars">${starsHtml}</span> ${rating}/5</span>`;
+        }
+
+        // Form Submission
+        document.getElementById('space-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'none';
+
+            const price = document.getElementById('price').value;
+            const capacity = document.getElementById('capacity').value;
+            const amenities = Array.from(document.querySelectorAll('input[name="amenities"]:checked')).map(cb => cb.value);
+
+            if (!price || !capacity) {
+                errorDiv.textContent = 'Please enter both price and capacity.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                console.log('Fetching recommendations:', { business_type: businessType, price, capacity, amenities });
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_type: businessType, price, capacity, amenities })
+                });
+
+                const result = await response.json();
+                const shopList = document.getElementById('shop-list');
+                shopList.innerHTML = '';
+
+                if (result.status === 'success') {
+                    if (result.recommendations.length === 0) {
+                        shopList.innerHTML = '<p class="no-results">No spaces found. Try different preferences.</p>';
+                    } else {
+                        result.recommendations.forEach(space => {
+                            const shopCard = document.createElement('div');
+                            shopCard.className = 'shop-card';
+                            shopCard.tabIndex = 0;
+                            shopCard.innerHTML = `
+                                <h3>${space.title || 'Unnamed Shop'}</h3>
+                                <p>Price: ₹${space.price.toLocaleString()}</p>
+                                <p>Capacity: ${space.capacity} people</p>
+                                <p>Amenities: ${space.amenities.join(', ') || 'None'}</p>
+                                ${renderStars(space.rating)}
+                                <button class="forecast-button" data-title="${space.title}">Forecast Price</button>
+                                <div class="forecast-results" id="forecast-${space.title.replace(/\s+/g, '-')}" style="display: none;"></div>
+                            `;
+                            shopCard.addEventListener('click', () => {
+                                // Navigate to pricing.html with query parameters
+                                window.location.href = `/pricing.html?business_type=${businessType}&title=${encodeURIComponent(space.title)}`;
+                            });
+                            shopList.appendChild(shopCard);
+
+                            // Add event listener for forecast button
+                            shopCard.querySelector('.forecast-button').addEventListener('click', async (e) => {
+                                e.stopPropagation(); // Prevent triggering shop card click
+                                const title = e.target.getAttribute('data-title');
+                                const forecastDiv = document.getElementById(`forecast-${title.replace(/\s+/g, '-')}`);
+                                forecastDiv.style.display = 'none';
+                                try {
+                                    const response = await fetch('/forecast_price', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ business_type: businessType, space_title: title })
+                                    });
+                                    const result = await response.json();
+                                    if (result.status === 'success') {
+                                        forecastDiv.innerHTML = result.forecast.map(f => `
+                                            <p>${f.date}: ₹${f.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                        `).join('');
+                                        forecastDiv.style.display = 'block';
+                                    } else {
+                                        forecastDiv.innerHTML = `<p class="error">${result.error}</p>`;
+                                        forecastDiv.style.display = 'block';
+                                    }
+                                } catch (error) {
+                                    forecastDiv.innerHTML = '<p class="error">Error fetching forecast. Please try again.</p>';
+                                    forecastDiv.style.display = 'block';
+                                }
+                            });
+                        });
+                    }
+
+                    if (map) {
+                        map.eachLayer(layer => {
+                            if (layer instanceof L.Marker) map.removeLayer(layer);
+                        });
+
+                        result.recommendations.forEach(space => {
+                            if (space.lat && space.lng) {
+                                const marker = L.marker([space.lat, space.lng]).addTo(map);
+                                marker.bindPopup(`
+                                    <b>${space.title || 'Unnamed Shop'}</b><br>
+                                    Price: ₹${space.price.toLocaleString()}<br>
+                                    Capacity: ${space.capacity}<br>
+                                    Amenities: ${space.amenities.join(', ') || 'None'}<br>
+                                    <div style="display: flex; align-items: center; gap: 5px; margin-top: 6px;">
+                                        ${renderStars(space.rating)}
+                                    </div>
+                                `);
+                                marker.on('click', () => {
+                                    window.location.href = `/pricing.html?business_type=${businessType}&title=${encodeURIComponent(space.title)}`;
+                                });
+                            } else {
+                                console.warn('Invalid coordinates for space:', space);
+                            }
+                        });
+
+                        if (result.recommendations.length > 0) {
+                            map.setView([result.recommendations[0].lat, result.recommendations[0].lng], 13);
+                        }
+                    }
+                    console.log('Recommendations loaded:', result.recommendations);
+                } else {
+                    errorDiv.textContent = result.error || 'Failed to load recommendations.';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                errorDiv.textContent = 'Error fetching recommendations. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Dynamic Color Animation
+        function updateRadiumColor() {
+            const hue = Math.sin(Date.now() / 5000) * 30 + 160;
+            const radium = `hsl(${hue}, 100%, 50%)`;
+            const radiumDark = `hsl(${hue}, 100%, 40%)`;
+            document.documentElement.style.setProperty('--radium', radium);
+            document.documentElement.style.setProperty('--radium-dark', radiumDark);
+            document.documentElement.style.setProperty('--radium-glow', `0 0 15px ${radium}7F`);
+            requestAnimationFrame(updateRadiumColor);
+        }
+        updateRadiumColor();
+    </script>
+</body>
+</html>
